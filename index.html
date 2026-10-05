@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>VICE AUTO — mini open world</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="1280" height="720"></canvas>
+
+  <!-- Schermata iniziale -->
+  <div id="start" class="overlay">
+    <div class="panel">
+      <h1>VICE <span>AUTO</span></h1>
+      <p class="tag">Mini open-world &bull; guida, furti, polizia, missioni</p>
+      <div class="keys">
+        <div><b>WASD</b> / <b>Frecce</b><span>Muoviti / guida</span></div>
+        <div><b>Shift</b><span>Corri (a piedi)</span></div>
+        <div><b>F</b><span>Entra / esci dall'auto</span></div>
+        <div><b>Spazio</b><span>Handbrake / drift</span></div>
+        <div><b>Esc</b> / <b>P</b><span>Pausa</span></div>
+        <div><b>R</b><span>Riprova dopo WASTED</span></div>
+        <div><b>M</b><span>Audio on/off</span></div>
+        <div><b>H</b><span>Mostra/nascondi aiuto</span></div>
+      </div>
+      <div style="margin: 14px 0 16px;">
+        <a href="vice3d.html" style="display:inline-block; background:linear-gradient(135deg,#ec4899,#06b6d4); color:#fff; text-decoration:none; padding:12px 24px; border-radius:8px; font-weight:900; font-size:16px; letter-spacing:1.5px; box-shadow:0 6px 20px rgba(6,182,212,.4); transition:transform .1s;">
+          🚀 AVVIA VICE CITY 3D (Grafica 3D, Armi, Moto, Radio 80s) &rarr;
+        </a>
+      </div>
+      <p class="hint">Oppure clicca qui sotto per giocare alla versione 2D classica:</p>
+      <button id="playBtn">GIOCA IN 2D</button>
+    </div>
+  </div>
+
+  <!-- Pausa -->
+  <div id="pause" class="overlay hidden">
+    <div class="panel small">
+      <h2>PAUSA</h2>
+      <p class="tag">premi Esc per riprendere</p>
+      <button id="resumeBtn">RIPRENDI</button>
+    </div>
+  </div>
+
+  <!-- WASTED -->
+  <div id="wasted" class="overlay hidden">
+    <div class="panel small wasted">
+      <h2>WASTED</h2>
+      <p class="tag">Ti hanno preso. Costo ospedale: $150</p>
+      <button id="respawnBtn">RINASCERE</button>
+    </div>
+  </div>
+
+  <!-- Controlli touch -->
+  <div id="touch" class="hidden">
+    <div class="tpad left">
+      <button class="tbtn" data-key="ArrowLeft">&#9664;</button>
+      <button class="tbtn" data-key="ArrowRight">&#9654;</button>
+    </div>
+    <div class="tpad right">
+      <button class="tbtn" data-key="KeyF">F</button>
+      <button class="tbtn" data-key="Space">&#9723;</button>
+      <button class="tbtn" data-key="ArrowDown">&#9660;</button>
+      <button class="tbtn" data-key="ArrowUp">&#9650;</button>
+    </div>
+  </div>
+</div>
+<script src="game.js"></script>
+</body>
+</html>

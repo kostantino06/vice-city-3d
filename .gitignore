@@ -1,0 +1,17 @@
+# File di sistema Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Node
+node_modules/
+npm-debug.log*
+
+# three3d.js: placeholder di 67 byte mai usato, escluso di proposito.
+# Il gioco carica Three.js dal CDN via importmap, quindi non serve vendorizzarlo.
+/three3d.js
+
+# Salvataggi locali e test temporanei
+*.log
+_generato.js
+_dump.js

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>VICE CITY 3D — open world</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#05070c;
+    font-family: system-ui,"Segoe UI",Roboto,sans-serif; color:#e8ecf4;
+    -webkit-user-select:none; user-select:none; }
+  #app { position:fixed; inset:0; }
+  canvas { display:block; width:100%; height:100%; }
+  /* grana + vignettatura: nasconde l'aliasing e dà aria "filmata" */
+  #grain { position:fixed; inset:0; pointer-events:none; z-index:5;
+    background:
+      radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 42%, rgba(0,0,0,.30) 100%);
+    mix-blend-mode: multiply; }
+  #scan { position:fixed; inset:0; pointer-events:none; z-index:6; opacity:.035;
+    background-image: repeating-linear-gradient(0deg, rgba(255,255,255,.7) 0 1px, rgba(0,0,0,0) 1px 3px); }
+
+  .overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(circle at 50% 38%, rgba(18,22,32,.82), rgba(4,5,8,.96));
+    backdrop-filter:blur(4px); z-index:20; }
+  .overlay.hidden { display:none; }
+  .panel { text-align:center; padding:36px 44px; border:1px solid rgba(255,255,255,.12);
+    border-radius:16px; background:rgba(10,12,18,.8); max-width:660px; width:92%; }
+  .panel.small { max-width:400px; }
+  h1 { font-size:58px; font-weight:900; letter-spacing:3px; color:#ffd34d;
+    text-shadow:0 6px 0 #a35a12, 0 12px 30px rgba(0,0,0,.7); }
+  h1 span { color:#6ec7ff; text-shadow:0 6px 0 #14496f, 0 12px 30px rgba(0,0,0,.7); }
+  h2 { font-size:40px; font-weight:900; letter-spacing:2px; color:#ff5f56; }
+  h2.wasted { color:#ff3b30; text-shadow:0 5px 0 #5c0d0a; }
+  .tag { margin:12px 0 18px; color:#9fb0c8; font-size:15px; }
+  .keys { display:grid; grid-template-columns:1fr 1fr; gap:9px 18px; text-align:left;
+    font-size:13px; color:#b9c6d8; margin-bottom:16px; }
+  .keys div { display:flex; gap:8px; align-items:baseline; }
+  .keys b { color:#ffd34d; background:rgba(255,211,77,.12); border:1px solid rgba(255,211,77,.3);
+    border-radius:5px; padding:1px 6px; font-size:12px; white-space:nowrap; }
+  .keys span { color:#7f8ea4; }
+  .hint { font-size:12.5px; color:#7f8ea4; line-height:1.6; margin-bottom:20px; }
+  button { font:inherit; font-weight:800; font-size:17px; letter-spacing:2px; color:#0c0f16;
+    cursor:pointer; padding:13px 34px; border:0; border-radius:8px;
+    background:linear-gradient(#ffd964,#f0a92c); box-shadow:0 5px 0 #9c5f0d, 0 12px 24px rgba(0,0,0,.5);
+    transition:transform .08s, box-shadow .08s; }
+  button:hover { transform:translateY(-1px); }
+  button:active { transform:translateY(4px); box-shadow:0 1px 0 #9c5f0d; }
+
+  #loadbar { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    z-index:30; text-align:center; }
+  #loadbar .track { width:280px; height:8px; border-radius:5px; background:rgba(255,255,255,.12);
+    overflow:hidden; margin-top:14px; }
+  #loadbar .fill { height:100%; width:0%; background:linear-gradient(#ffd964,#f0a92c);
+    transition:width .25s; }
+  #loadbar .lbl { font-size:13px; color:#9fb0c8; letter-spacing:2px; }
+
+  /* HUD */
+  #hud { position:absolute; inset:0; pointer-events:none; z-index:10; }
+  .panelbox { position:absolute; background:rgba(8,10,15,.55); border:1px solid rgba(255,255,255,.1);
+    border-radius:10px; padding:10px 12px; }
+  #topleft { left:14px; top:14px; min-width:236px; }
+  #topleft .row { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+  #topleft .lbl { font-size:11px; color:#8fa0b8; letter-spacing:1px; width:42px; }
+  #hpbar { flex:1; height:12px; border-radius:4px; background:rgba(0,0,0,.55); overflow:hidden; }
+  #hpfill { height:100%; width:100%; background:#4ad06a; transition:width .2s; }
+  #money { margin-left:auto; font:700 20px system-ui; color:#7dff9b; }
+  #stars { font-size:24px; line-height:1; letter-spacing:2px; color:rgba(255,255,255,.16); }
+  #stars b { color:#ffd34d; text-shadow:0 0 12px rgba(255,200,60,.8); }
+
+  #topmid { left:50%; transform:translateX(-50%); top:14px; text-align:center; padding:7px 16px; }
+  #topmid .t { font-size:11px; color:#8fa0b8; letter-spacing:1px; }
+  #topmid .v { font:700 18px system-ui; color:#e8ecf4; }
+
+  #topright { right:14px; top:14px; width:300px; }
+  #topright .h { font-size:11px; letter-spacing:1px; color:#ffd34d; margin-bottom:4px; }
+  #topright .h.offer { color:#7dff9b; }
+  #topright .d { font-size:13px; color:#e6ecf6; line-height:1.4; }
+  #topright .tm { font:700 13px system-ui; color:#cfe0f5; margin-top:4px; }
+
+  #speedo { right:14px; bottom:14px; width:150px; text-align:center; padding:8px 10px 10px; }
+  #kmh { font:700 34px system-ui; line-height:1; }
+  #speedo .u { font-size:11px; color:#8fa0b8; letter-spacing:1px; }
+  #dmgbar { height:9px; border-radius:4px; background:rgba(0,0,0,.55); overflow:hidden; margin-top:7px; }
+  #dmgfill { height:100%; width:0%; background:#ffb020; }
+
+  #minimap { left:14px; bottom:14px; padding:0; overflow:hidden; border-radius:10px; }
+  #minimap canvas { width:190px; height:190px; display:block; }
+
+  #hintbox { left:50%; transform:translateX(-50%); bottom:24px; padding:8px 18px;
+    font:700 17px system-ui; color:#ffd34d; opacity:0; transition:opacity .25s; white-space:nowrap; }
+  #toast { left:50%; transform:translateX(-50%); top:86px; padding:9px 20px;
+    font:700 17px system-ui; color:#7dff9b; opacity:0; transition:opacity .25s; white-space:nowrap; }
+
+  #bottomright { right:220px; bottom:16px; font-size:11px; color:rgba(190,205,225,.55); }
+  #fpsbox { left:14px; bottom:214px; font:700 11px ui-monospace,monospace; color:#9fff9f; display:none; }
+
+  /* Mirino per puntamento e sparo */
+  #crosshair { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:22px; height:22px; pointer-events:none; z-index:12; display:flex; align-items:center; justify-content:center; }
+  #crosshair::before, #crosshair::after { content:''; position:absolute; background:rgba(255,255,255,.85);
+    box-shadow:0 0 3px rgba(0,0,0,.85); border-radius:1px; transition:background .1s, transform .1s; }
+  #crosshair::before { width:16px; height:2px; }
+  #crosshair::after { width:2px; height:16px; }
+  #crosshair.hit::before, #crosshair.hit::after { background:#ff3838; transform:scale(1.35); }
+
+  /* Widget Radio Synthwave */
+  #radiobox { right:14px; top:116px; width:190px; pointer-events:auto; }
+  #radiobox .rlbl { font-size:10px; color:#ff70c0; letter-spacing:1px; font-weight:800; display:flex; justify-content:space-between; }
+  #radiobox .rstation { font:800 14px system-ui; color:#ffd34d; margin:3px 0 1px; text-shadow:0 0 10px rgba(255,211,77,.45); }
+  #radiobox .rtrack { font-size:11px; color:#9fb0c8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #radiobox .rctrls { display:flex; gap:6px; margin-top:5px; }
+  .rctrlbtn { background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2); color:#fff;
+    border-radius:4px; padding:2px 8px; font-size:11px; font-weight:700; cursor:pointer; }
+  .rctrlbtn:hover { background:rgba(255,255,255,.25); }
+
+  /* Widget Arma e Munizioni */
+  #weaponbox { left:14px; top:88px; min-width:195px; display:flex; align-items:center; gap:8px; pointer-events:auto; }
+  #weaponbox .wicon { font-size:24px; filter:drop-shadow(0 0 6px rgba(255,211,77,.6)); }
+  #weaponbox .winfo { line-height:1.2; }
+  #weaponbox .wname { font-size:10px; color:#ffd34d; letter-spacing:1px; font-weight:800; }
+  #weaponbox .wammo { font:800 17px system-ui; color:#fff; }
+  .wslots { display:flex; gap:3px; margin-left:auto; }
+  .wdot { font-size:12px; opacity:0.35; padding:2px 4px; border-radius:4px; background:rgba(255,255,255,.08); cursor:pointer; transition:all .15s; }
+  .wdot:hover { opacity:0.85; }
+  .wdot.active { opacity:1; background:rgba(255,211,77,.3); border:1px solid #ffd34d; transform:scale(1.1); }
+
+  /* Widget Pacchetti Segreti */
+  #packbox { left:218px; top:88px; min-width:98px; text-align:center; }
+  #packbox .pklbl { font-size:10px; color:#d946ef; letter-spacing:1px; font-weight:800; }
+  #packbox .pkval { font:800 15px system-ui; color:#f0abfc; margin-top:2px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="grain"></div>
+<div id="scan"></div>
+<div id="crosshair"></div>
+
+<div id="loadbar">
+  <div class="lbl">CARICAMENTO</div>
+  <div class="track"><div class="fill" id="loadfill"></div></div>
+</div>
+
+<div id="hud">
+  <div class="panelbox" id="topleft">
+    <div class="row"><span class="lbl">VITA</span><div id="hpbar"><div id="hpfill"></div></div><span id="money">$300</span></div>
+    <div id="stars">☆☆☆☆☆</div>
+  </div>
+  <div class="panelbox" id="weaponbox" title="Clicca o premi 1-5 / Rotella per cambiare arma">
+    <div class="wicon" id="wicon">🔫</div>
+    <div class="winfo">
+      <div class="wname" id="wname">PISTOLA .45</div>
+      <div class="wammo" id="wammo">120</div>
+    </div>
+    <div class="wslots" id="wslots">
+      <span class="wdot" data-w="0" title="1: Pugni">👊</span>
+      <span class="wdot active" data-w="1" title="2: Pistola">🔫</span>
+      <span class="wdot" data-w="2" title="3: UZI">⚡</span>
+      <span class="wdot" data-w="3" title="4: Pompa">💥</span>
+      <span class="wdot" data-w="4" title="5: RPG">🚀</span>
+    </div>
+  </div>
+  <div class="panelbox" id="packbox">
+    <div class="pklbl">PACCHETTI</div>
+    <div class="pkval" id="pkcount">0 / 10</div>
+  </div>
+  <div class="panelbox" id="topmid">
+    <div class="t">AUTO RUBATE</div><div class="v" id="carsstolen">0</div>
+  </div>
+  <div class="panelbox" id="topright">
+    <div class="h offer" id="msnhead">CARICAMENTO…</div>
+    <div class="d" id="msndesc"></div>
+    <div class="tm" id="msntime"></div>
+  </div>
+  <div class="panelbox" id="radiobox">
+    <div class="rlbl"><span>📻 RADIO 80s</span><span>(Q / E)</span></div>
+    <div class="rstation" id="radiostation">FLASH FM</div>
+    <div class="rtrack" id="radiotrack">Synthpop Groove</div>
+    <div class="rctrls">
+      <button class="rctrlbtn" id="radioPrev">&larr; Indietro</button>
+      <button class="rctrlbtn" id="radioNext">Avanti &rarr;</button>
+    </div>
+  </div>
+  <div class="panelbox" id="speedo" style="display:none">
+    <div id="kmh">0</div><div class="u">KM/H</div>
+    <div id="dmgbar"><div id="dmgfill"></div></div>
+  </div>
+  <div class="panelbox" id="minimap"><canvas id="mm" width="190" height="190"></canvas></div>
+  <div class="panelbox" id="hintbox"></div>
+  <div class="panelbox" id="toast"></div>
+  <div id="bottomright">F: veicolo &bull; Click/Ctrl: spara &bull; 1-5 / Rotella: armi &bull; Q/E: radio &bull; Spazio: freno</div>
+  <div id="fpsbox"></div>
+</div>
+
+<div class="overlay" id="start">
+  <div class="panel">
+    <h1>VICE <span>CITY 3D</span></h1>
+    <p class="tag">Open world 3D avanzato &bull; guida, sparatorie, moto, supercar, taxi, chopper, furgoni e radio 80s</p>
+    <div class="keys">
+      <div><b>WASD / Frecce</b><span>Movimento / Guida</span></div>
+      <div><b>Mouse Dx / Drag</b><span>Ruota telecamera</span></div>
+      <div><b>Click Sx / Ctrl / J</b><span>Spara / Attacca (Raffica UZI)</span></div>
+      <div><b>1 - 5 / Rotella</b><span>Cambia arma (Pugni, UZI, Pompa, RPG)</span></div>
+      <div><b>Shift</b><span>Sprint a piedi / Boost</span></div>
+      <div><b>Spazio</b><span>Freno a mano / Derapata con fumo</span></div>
+      <div><b>F</b><span>Entra / Esci dal veicolo</span></div>
+      <div><b>Q / E</b><span>Cambia stazione Radio 80s</span></div>
+      <div><b>C</b><span>Cambia telecamera (3 viste)</span></div>
+      <div><b>T</b><span>Ora del giorno (giorno / sera / notte)</span></div>
+      <div><b>V</b><span>Salta (a piedi)</span></div>
+      <div><b>R</b><span>Ricarica l'arma</span></div>
+      <div><b>E</b><span>Negozio Armory (vicino all'insegna)</span></div>
+      <div><b>F5</b><span>Salva la partita</span></div>
+      <div><b>H</b><span>Clacson / Sirena</span></div>
+      <div><b>M</b><span>Audio generale ON/OFF</span></div>
+      <div><b>Esc / P</b><span>Pausa</span></div>
+    </div>
+    <p class="hint">Guida sull'anello dorato per missioni (Consegne, Gare, Furti, Taxi).<br>
+      Trova i 10 Pacchetti Segreti e sperimenta tutti i nuovi veicoli e armi!</p>
+    <button id="playBtn">GIOCA</button>
+    <div id="saveActions" style="margin-top:14px; display:none; gap:10px; justify-content:center; flex-wrap:wrap;">
+      <button id="continueBtn" style="background:linear-gradient(#7dff9b,#2fa85f); box-shadow:0 5px 0 #14663a,0 12px 24px rgba(0,0,0,.5);">CONTINUA PARTITA</button>
+      <button id="newGameBtn" style="background:linear-gradient(#8892a0,#4a5462); box-shadow:0 5px 0 #2b323c,0 12px 24px rgba(0,0,0,.5);">NUOVA PARTITA</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="shop">
+  <div class="panel">
+    <h2 style="color:#ffd34d; text-shadow:0 4px 0 #7a4a08">ARMORY</h2>
+    <p class="tag">Armi, munizioni e riparazioni &bull; I tuoi soldi: <b id="shopMoney">$0</b></p>
+    <div id="shopList" style="display:flex; flex-direction:column; gap:8px; margin:14px 0; max-height:52vh; overflow-y:auto"></div>
+    <button id="shopCloseBtn">CHIUDI</button>
+  </div>
+</div>
+
+<div class="overlay hidden" id="pause">
+  <div class="panel small">
+    <h2>PAUSA</h2><p class="tag">premi Esc per riprendere</p>
+    <button id="saveBtn" style="margin-bottom:10px;">SALVA PARTITA</button><br>
+    <button id="resumeBtn">RIPRENDI</button>
+  </div>
+</div>
+
+<div class="overlay hidden" id="wasted">
+  <div class="panel small">
+    <h2 class="wasted">WASTED</h2>
+    <p class="tag">Costo ospedale: $150 &bull; Premi R, Spazio o Invio</p>
+    <button id="respawnBtn">RINASCERE</button>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module" src="./game3d.js?v=23"></script>
+</body>
+</html>
